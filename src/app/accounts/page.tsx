@@ -5,27 +5,32 @@ import type { Account } from "@/types";
 export const dynamic = "force-dynamic";
 
 async function getAccounts(): Promise<Account[]> {
-  const accounts = await prisma.account.findMany({
-    include: { transactions: true },
-    orderBy: { id: "asc" },
-  });
+  try {
+    const accounts = await prisma.account.findMany({
+      include: { transactions: true },
+      orderBy: { id: "asc" },
+    });
 
-  return accounts.map((account) => {
-    const totalIncome = account.transactions
-      .filter((transaction) => transaction.type === "income")
-      .reduce((sum, transaction) => sum + transaction.amount, 0);
-    const totalExpenses = account.transactions
-      .filter((transaction) => transaction.type === "expense")
-      .reduce((sum, transaction) => sum + transaction.amount, 0);
+    return accounts.map((account) => {
+      const totalIncome = account.transactions
+        .filter((transaction) => transaction.type === "income")
+        .reduce((sum, transaction) => sum + transaction.amount, 0);
+      const totalExpenses = account.transactions
+        .filter((transaction) => transaction.type === "expense")
+        .reduce((sum, transaction) => sum + transaction.amount, 0);
 
-    return {
-      id: account.id,
-      name: account.name,
-      balance: totalIncome - totalExpenses,
-      totalIncome,
-      totalExpenses,
-    };
-  });
+      return {
+        id: account.id,
+        name: account.name,
+        balance: totalIncome - totalExpenses,
+        totalIncome,
+        totalExpenses,
+      };
+    });
+  } catch (error) {
+    console.error("Failed to load accounts", error);
+    return [];
+  }
 }
 
 export default async function AccountsPage() {
@@ -38,9 +43,15 @@ export default async function AccountsPage() {
         <h1 className="page-title">Accounts</h1>
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
-        {accounts.map((account) => (
-          <AccountCard key={account.id} account={account} />
-        ))}
+        {accounts.length ? (
+          accounts.map((account) => (
+            <AccountCard key={account.id} account={account} />
+          ))
+        ) : (
+          <div className="glass-panel rounded-lg border-dashed p-8 text-center text-sm text-slate-300 lg:col-span-2">
+            No accounts found. If this is deployed on Vercel, check DATABASE_URL and run Prisma migrations.
+          </div>
+        )}
       </div>
     </div>
   );

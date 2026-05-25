@@ -18,8 +18,11 @@ export default function TransactionHistory() {
     setLoading(true);
     const query = filter === "all" ? "" : `?type=${filter}`;
     fetch(`/api/transactions${query}`)
-      .then((response) => response.json())
-      .then((data: Transaction[]) => setTransactions(data))
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Failed to fetch transactions");
+        return response.json();
+      })
+      .then((data: Transaction[]) => setTransactions(Array.isArray(data) ? data : []))
       .catch(() => setError("Could not load transactions."))
       .finally(() => setLoading(false));
   }, [filter]);

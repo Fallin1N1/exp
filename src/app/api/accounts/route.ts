@@ -27,7 +27,8 @@ export async function GET() {
       }),
       { status: 200 },
     );
-  } catch {
+  } catch (error) {
+    console.error("Failed to fetch accounts", error);
     return NextResponse.json({ error: "Failed to fetch accounts" }, { status: 500 });
   }
 }
@@ -43,7 +44,8 @@ export async function POST(request: Request) {
 
     const account = await prisma.account.create({ data: { name } });
     return NextResponse.json(account, { status: 201 });
-  } catch {
+  } catch (error) {
+    console.error("Failed to create account", error);
     return NextResponse.json({ error: "Failed to create account" }, { status: 500 });
   }
 }

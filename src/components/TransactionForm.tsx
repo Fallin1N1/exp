@@ -45,10 +45,14 @@ export default function TransactionForm() {
 
   useEffect(() => {
     fetch("/api/accounts")
-      .then((response) => response.json())
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Failed to fetch accounts");
+        return response.json();
+      })
       .then((data: Account[]) => {
-        setAccounts(data);
-        setAccountId(String(data[0]?.id || ""));
+        const accounts = Array.isArray(data) ? data : [];
+        setAccounts(accounts);
+        setAccountId(String(accounts[0]?.id || ""));
       })
       .catch(() => setError("Could not load accounts."))
       .finally(() => setLoading(false));

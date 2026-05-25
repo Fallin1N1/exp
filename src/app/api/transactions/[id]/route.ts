@@ -19,7 +19,8 @@ export async function DELETE(
 
     await prisma.transaction.delete({ where: { id } });
     return NextResponse.json({ ok: true }, { status: 200 });
-  } catch {
+  } catch (error) {
+    console.error("Failed to delete transaction", error);
     return NextResponse.json({ error: "Failed to delete transaction" }, { status: 500 });
   }
 }

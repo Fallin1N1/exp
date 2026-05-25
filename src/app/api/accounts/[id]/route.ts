@@ -25,7 +25,8 @@ export async function PATCH(
 
     const account = await prisma.account.update({ where: { id }, data: { name } });
     return NextResponse.json(account, { status: 200 });
-  } catch {
+  } catch (error) {
+    console.error("Failed to update account", error);
     return NextResponse.json({ error: "Failed to update account" }, { status: 500 });
   }
 }
