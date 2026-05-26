@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ReceiptText } from "lucide-react";
 import TransactionItem from "@/components/TransactionItem";
+import { invalidateUiCache, invalidateUiCachePrefix, readUiCache, uiCacheKeys, writeUiCache } from "@/lib/ui-cache";
 import type { Transaction, TransactionType } from "@/types";
 
 type Filter = "all" | TransactionType;
@@ -15,16 +16,40 @@ export default function TransactionHistory() {
   const [deleting, setDeleting] = useState<number | null>(null);
 
   useEffect(() => {
-    setLoading(true);
+    let cancelled = false;
     const query = filter === "all" ? "" : `?type=${filter}`;
-    fetch(`/api/transactions${query}`)
+    const cacheKey = uiCacheKeys.transactions(filter);
+    const cachedTransactions = readUiCache<Transaction[]>(cacheKey);
+
+    setError("");
+
+    if (cachedTransactions) {
+      setTransactions(cachedTransactions);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    fetch(`/api/transactions${query}`, { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Failed to fetch transactions");
         return response.json();
       })
-      .then((data: Transaction[]) => setTransactions(Array.isArray(data) ? data : []))
-      .catch(() => setError("Could not load transactions."))
-      .finally(() => setLoading(false));
+      .then((data: Transaction[]) => {
+        const transactions = Array.isArray(data) ? data : [];
+        writeUiCache(cacheKey, transactions);
+        if (!cancelled) setTransactions(transactions);
+      })
+      .catch(() => {
+        if (!cancelled && !cachedTransactions) setError("Could not load transactions.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [filter]);
 
   async function deleteTransaction(id: number) {
@@ -37,7 +62,13 @@ export default function TransactionHistory() {
       return;
     }
 
-    setTransactions((current) => current.filter((transaction) => transaction.id !== id));
+    invalidateUiCache([uiCacheKeys.accounts]);
+    invalidateUiCachePrefix("transactions:");
+    setTransactions((current) => {
+      const next = current.filter((transaction) => transaction.id !== id);
+      writeUiCache(uiCacheKeys.transactions(filter), next);
+      return next;
+    });
   }
 
   return (

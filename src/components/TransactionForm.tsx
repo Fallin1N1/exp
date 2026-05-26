@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlusCircle } from "lucide-react";
+import { invalidateUiCache, invalidateUiCachePrefix, readUiCache, uiCacheKeys, writeUiCache } from "@/lib/ui-cache";
 import { expenseCategories, incomeCategories, type Account, type TransactionType } from "@/types";
 
 const descriptionSuggestions: Record<string, string[]> = {
@@ -44,18 +45,38 @@ export default function TransactionForm() {
   const suggestions = useMemo(() => descriptionSuggestions[category] || [], [category]);
 
   useEffect(() => {
-    fetch("/api/accounts")
+    let cancelled = false;
+    const cachedAccounts = readUiCache<Account[]>(uiCacheKeys.accounts);
+
+    if (cachedAccounts) {
+      setAccounts(cachedAccounts);
+      setAccountId(String(cachedAccounts[0]?.id || ""));
+      setLoading(false);
+    }
+
+    fetch("/api/accounts", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Failed to fetch accounts");
         return response.json();
       })
       .then((data: Account[]) => {
         const accounts = Array.isArray(data) ? data : [];
+        writeUiCache(uiCacheKeys.accounts, accounts);
+        if (cancelled) return;
+
         setAccounts(accounts);
         setAccountId(String(accounts[0]?.id || ""));
       })
-      .catch(() => setError("Could not load accounts."))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (!cancelled && !cachedAccounts) setError("Could not load accounts.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -91,6 +112,8 @@ export default function TransactionForm() {
     setDesc("");
     setAmount("");
     setMessage("Transaction saved successfully.");
+    invalidateUiCache([uiCacheKeys.accounts]);
+    invalidateUiCachePrefix("transactions:");
     router.refresh();
   }
 

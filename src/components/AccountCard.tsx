@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check, Pencil, Wallet, X } from "lucide-react";
+import { invalidateUiCache, invalidateUiCachePrefix, uiCacheKeys } from "@/lib/ui-cache";
 import { formatCurrency } from "@/lib/utils";
 import type { Account } from "@/types";
 
 export default function AccountCard({ account }: { account: Account }) {
+  const router = useRouter();
   const [name, setName] = useState(account.name);
   const [draft, setDraft] = useState(account.name);
   const [editing, setEditing] = useState(false);
@@ -29,6 +32,9 @@ export default function AccountCard({ account }: { account: Account }) {
 
     setName(draft.trim());
     setEditing(false);
+    invalidateUiCache([uiCacheKeys.accounts]);
+    invalidateUiCachePrefix("transactions:");
+    router.refresh();
   }
 
   return (
